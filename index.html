@@ -63,6 +63,11 @@
   .stat{background:var(--card2);border:1px solid var(--line);border-radius:14px;padding:16px 22px;min-width:120px}
   .stat .n{font-size:26px;font-weight:800;color:var(--acc)}
   .stat .l{font-size:11.5px;color:var(--mut);text-transform:uppercase;letter-spacing:.6px;margin-top:3px}
+  .picklabel{font-size:12.5px;color:var(--mut);text-transform:uppercase;letter-spacing:.7px;margin:2px 0 14px}
+  .pick{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+  .pickbtn{display:flex;flex-direction:column;align-items:center;gap:2px;min-width:112px;padding:16px 20px}
+  .pickbtn b{font-size:24px;font-weight:800;line-height:1}
+  .pickbtn span{font-size:10.5px;font-weight:700;opacity:.85;text-transform:uppercase;letter-spacing:.5px}
 
   .btn{
     border:none;cursor:pointer;font-family:inherit;font-weight:700;font-size:15px;
@@ -91,6 +96,7 @@
     color:var(--acc);background:rgba(91,140,255,.12);border:1px solid rgba(91,140,255,.3);
     padding:4px 10px;border-radius:8px}
   .tag.multi{color:var(--amber);background:rgba(255,194,75,.12);border-color:rgba(255,194,75,.35)}
+  .tag.saved{color:var(--acc2);background:rgba(138,107,255,.14);border-color:rgba(138,107,255,.4)}
   .qtext{font-size:18px;line-height:1.55;font-weight:600;margin-bottom:22px;white-space:pre-wrap}
 
   .qimg{margin:2px 0 20px}
@@ -208,6 +214,29 @@
     .rstat{min-width:88px;padding:12px 14px}
     footer{font-size:10.5px}
   }
+  /* Home button */
+  .homebtn{width:42px;height:42px;border-radius:50%;flex:0 0 auto;border:1px solid var(--line);
+    background:var(--card2);color:var(--txt);cursor:pointer;display:grid;place-items:center;
+    transition:all .15s}
+  .homebtn:hover{border-color:var(--acc);color:var(--acc);transform:translateY(-1px)}
+  .homebtn svg{display:block}
+  /* Confirm modal */
+  .modal{position:fixed;inset:0;background:rgba(5,8,18,.72);backdrop-filter:blur(3px);
+    display:flex;align-items:center;justify-content:center;z-index:50;padding:20px;animation:fade .2s ease}
+  .modalcard{background:linear-gradient(180deg,var(--card),var(--bg2));border:1px solid var(--line);
+    border-radius:18px;box-shadow:var(--shadow);padding:26px 24px;max-width:380px;width:100%;text-align:center}
+  .modalq{font-size:18px;font-weight:800;margin-bottom:8px}
+  .modalsub{font-size:13px;color:var(--mut);margin-bottom:22px;line-height:1.5}
+  .modalbtns{display:flex;gap:12px;justify-content:center}
+  .mbtn{flex:1;border:1.5px solid var(--line);background:var(--card2);border-radius:12px;padding:13px 0;
+    font-family:inherit;font-weight:800;font-size:16px;cursor:pointer;transition:all .15s}
+  .mbtn.yes{color:var(--grn)} .mbtn.yes:hover{border-color:var(--grn);background:var(--grn-bg)}
+  .mbtn.no{color:var(--red)} .mbtn.no:hover{border-color:var(--red);background:var(--red-bg)}
+  /* Toast */
+  .toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%);background:var(--card2);
+    border:1px solid var(--acc);color:var(--txt);padding:10px 18px;border-radius:999px;font-size:13px;
+    font-weight:700;z-index:60;box-shadow:var(--shadow);opacity:0;pointer-events:none;transition:opacity .25s}
+  .toast.show{opacity:1}
 </style>
 </head>
 <body>
@@ -220,19 +249,26 @@
     </div>
     <div class="spacer"></div>
     <div class="pill" id="poolPill"></div>
+    <button class="homebtn hide" id="homeBtn" aria-label="Back to home" title="Home">
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V20a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V9.5"/><path d="M9.5 21v-6h5v6"/></svg>
+    </button>
   </header>
 
   <!-- START -->
   <section id="start" class="card fade">
     <div class="big">Ready to study?</div>
-    <p class="sub">Each session pulls <b id="sessSize">50</b> random questions from the full SY0-701 pool.
+    <p class="sub">Choose how many random questions you want from the full SY0-701 pool.
        Pick your answer, get instant feedback, and read the explanation whenever you miss one.</p>
     <div class="stats">
       <div class="stat"><div class="n" id="poolN">0</div><div class="l">Question Pool</div></div>
-      <div class="stat"><div class="n">50</div><div class="l">Per Session</div></div>
       <div class="stat"><div class="n">∞</div><div class="l">Retries</div></div>
     </div>
-    <button class="btn" id="startBtn">Start 50-Question Session →</button>
+    <div class="picklabel">How many questions this session?</div>
+    <div class="pick">
+      <button class="btn pickbtn" data-size="10"><b>10</b><span>questions</span></button>
+      <button class="btn pickbtn" data-size="25"><b>25</b><span>questions</span></button>
+      <button class="btn pickbtn" data-size="50"><b>50</b><span>questions</span></button>
+    </div>
   </section>
 
   <!-- QUIZ -->
@@ -245,6 +281,7 @@
     <div class="qmeta">
       <span class="tag" id="qIdTag">Q</span>
       <span class="tag multi hide" id="multiTag">Select multiple</span>
+      <span class="tag saved hide" id="savedTag">↪ Saved for later</span>
     </div>
     <div class="qtext" id="qText"></div>
     <div class="qimg" id="qImg"></div>
@@ -257,6 +294,7 @@
       <button class="btn ghost hide" id="explBtn">Show explanation</button>
       <span class="spacer"></span>
       <span class="hintkbd" id="kbHint"><kbd>A</kbd>–<kbd>F</kbd> select &middot; <kbd>Enter</kbd> submit</span>
+      <button class="btn ghost hide" id="laterBtn">↪ Save for Later</button>
       <button class="btn" id="submitBtn" disabled>Submit</button>
       <button class="btn hide" id="nextBtn">Next →</button>
     </div>
@@ -282,12 +320,24 @@
       <div class="rstat r"><div class="n" id="rWrong">0</div><div class="l">Missed</div></div>
       <div class="rstat"><div class="n" id="rTotal">0</div><div class="l">Total</div></div>
     </div>
-    <button class="btn" id="againBtn">New 50-Question Session ↻</button>
+    <button class="btn" id="againBtn">New Session ↻</button>
     <div class="review" id="review"></div>
   </section>
 
   <footer>Built from CompTIA Security+ SY0-701 practice set &middot; offline study tool<br><strong>For private use only &mdash; not for sale or redistribution.</strong> Unofficial study aid; verify against official CompTIA materials.</footer>
 </div>
+
+<div class="modal hide" id="homeModal">
+  <div class="modalcard">
+    <div class="modalq">Return to the home page?</div>
+    <div class="modalsub">Your current session and progress will be lost.</div>
+    <div class="modalbtns">
+      <button class="mbtn yes" id="homeYes">Yes</button>
+      <button class="mbtn no" id="homeNo">No</button>
+    </div>
+  </div>
+</div>
+<div class="toast hide" id="toast"></div>
 
 <script>
 const QUESTIONS = [
@@ -11224,10 +11274,10 @@ const QUESTIONS = [
 
 const $ = s => document.querySelector(s);
 const el = (t,c)=>{const e=document.createElement(t); if(c)e.className=c; return e;};
-const SESSION_SIZE = 50;
+let sessionSize = 50;
 const LETTERS = ['A','B','C','D','E','F'];
 
-let pool=[], idx=0, selected=new Set(), graded=false, score=0, results=[];
+let pool=[], idx=0, selected=new Set(), graded=false, score=0, results=[], sessionN=0, answeredCount=0;
 
 function shuffle(a){a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
 function eqSet(a,b){if(a.size!==b.size)return false;for(const x of a)if(!b.has(x))return false;return true;}
@@ -11235,28 +11285,57 @@ function eqSet(a,b){if(a.size!==b.size)return false;for(const x of a)if(!b.has(x
 function init(){
   $('#poolN').textContent = QUESTIONS.length;
   $('#poolPill').textContent = QUESTIONS.length + ' questions in pool';
-  $('#sessSize').textContent = Math.min(SESSION_SIZE, QUESTIONS.length);
 }
 
-function startSession(){
-  pool = shuffle(QUESTIONS).slice(0, Math.min(SESSION_SIZE, QUESTIONS.length));
+function startSession(size){
+  if(size) sessionSize = size;
+  pool = shuffle(QUESTIONS).slice(0, Math.min(sessionSize, QUESTIONS.length));
+  sessionN = pool.length; answeredCount = 0;
+  pool.forEach((q,i)=>{ q._pos = i+1; q._deferred = false; });   // fixed 1-based number per question
   idx=0; score=0; results=[];
   $('#start').classList.add('hide');
   $('#results').classList.add('hide');
   $('#quiz').classList.remove('hide');
+  $('#homeBtn').classList.remove('hide');
   renderQ();
+}
+
+function backToStart(){
+  $('#quiz').classList.add('hide');
+  $('#results').classList.add('hide');
+  $('#homeBtn').classList.add('hide');
+  $('#start').classList.remove('hide');
+  window.scrollTo(0,0);
+}
+
+function saveForLater(){
+  if(graded) return;
+  const q = pool[idx];
+  q._deferred = true;
+  pool.splice(idx, 1);   // remove the current question...
+  pool.push(q);          // ...and requeue it at the end of the session
+  toast('↪ Saved — you’ll see it again at the end');
+  renderQ();             // idx unchanged: the next question (with its own number) slides into view
+}
+
+let toastTimer;
+function toast(msg){
+  const t=$('#toast'); t.textContent=msg;
+  t.classList.remove('hide'); t.classList.add('show');
+  clearTimeout(toastTimer); toastTimer=setTimeout(()=>t.classList.remove('show'), 1600);
 }
 
 function renderQ(){
   const q = pool[idx];
   selected = new Set(); graded=false;
-  $('#counter').textContent = `${idx+1} / ${pool.length}`;
-  $('#progBar').style.width = (idx/pool.length*100)+'%';
+  $('#counter').textContent = `${q._pos} / ${sessionN}`;
+  $('#progBar').style.width = (answeredCount/sessionN*100)+'%';
   $('#scoreNow').textContent = score;
   $('#qIdTag').textContent = 'Question #'+q.id;
   const multi = q.answer.length>1;
   $('#multiTag').classList.toggle('hide', !multi);
   if(multi) $('#multiTag').textContent = `Select ${q.answer.length}`;
+  $('#savedTag').classList.toggle('hide', !q._deferred);
   $('#qText').textContent = q.question;
   $('#qImg').innerHTML = q.image ? '<img alt="exhibit" src="'+q.image+'">' : '';
 
@@ -11273,6 +11352,7 @@ function renderQ(){
   const ex=$('#expl'); ex.className='expl'; ex.innerHTML='';
   $('#explBtn').classList.add('hide'); $('#explBtn').textContent='Show explanation';
   $('#submitBtn').classList.remove('hide'); $('#submitBtn').disabled=true;
+  $('#laterBtn').classList.remove('hide');
   $('#nextBtn').classList.add('hide');
   $('#nextBtn').textContent = idx===pool.length-1 ? 'See Results →' : 'Next →';
   $('#kbHint').classList.remove('hide');
@@ -11295,6 +11375,7 @@ function submit(){
   const correct = new Set(q.answer);
   const ok = eqSet(selected, correct);
   if(ok) score++;
+  answeredCount++;
   results.push({q, picked:[...selected], ok});
 
   const opts=$('#opts'); opts.classList.add('graded');
@@ -11319,6 +11400,7 @@ function submit(){
 
   $('#scoreNow').textContent = score;
   $('#submitBtn').classList.add('hide');
+  $('#laterBtn').classList.add('hide');
   $('#nextBtn').classList.remove('hide');
   $('#kbHint').classList.add('hide');
   $('#nextBtn').focus();
@@ -11334,7 +11416,7 @@ function escapeHtml(s){return s.replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>'
 function showResults(){
   $('#quiz').classList.add('hide');
   const r=$('#results'); r.classList.remove('hide'); r.classList.remove('fade'); void r.offsetWidth; r.classList.add('fade');
-  const total=pool.length, wrong=total-score, pct=Math.round(score/total*100);
+  const total=sessionN, wrong=total-score, pct=Math.round(score/total*100);
   $('#pctN').textContent=pct+'%';
   $('#rCorrect').textContent=score; $('#rWrong').textContent=wrong; $('#rTotal').textContent=total;
   const off = 465 - 465*(pct/100);
@@ -11373,6 +11455,7 @@ function showResults(){
 
 // keyboard
 document.addEventListener('keydown',e=>{
+  if(!$('#homeModal').classList.contains('hide')){ if(e.key==='Escape') $('#homeModal').classList.add('hide'); return; }
   if($('#quiz').classList.contains('hide')) return;
   const k=e.key.toUpperCase();
   if(LETTERS.includes(k)){
@@ -11383,10 +11466,15 @@ document.addEventListener('keydown',e=>{
   }
 });
 
-$('#startBtn').onclick=startSession;
-$('#againBtn').onclick=startSession;
+document.querySelectorAll('.pickbtn').forEach(b=>b.onclick=()=>startSession(parseInt(b.dataset.size,10)));
+$('#againBtn').onclick=backToStart;
 $('#submitBtn').onclick=submit;
+$('#laterBtn').onclick=saveForLater;
 $('#nextBtn').onclick=next;
+$('#homeBtn').onclick=()=>$('#homeModal').classList.remove('hide');
+$('#homeNo').onclick=()=>$('#homeModal').classList.add('hide');
+$('#homeYes').onclick=()=>{$('#homeModal').classList.add('hide'); backToStart();};
+$('#homeModal').onclick=e=>{ if(e.target===$('#homeModal')) $('#homeModal').classList.add('hide'); };
 $('#explBtn').onclick=()=>{const ex=$('#expl');ex.classList.toggle('show');
   $('#explBtn').textContent=ex.classList.contains('show')?'Hide explanation':'Show explanation';};
 
