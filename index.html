@@ -238,6 +238,17 @@
     font-weight:700;z-index:60;box-shadow:var(--shadow);opacity:0;pointer-events:none;transition:opacity .25s}
   .toast.show{opacity:1}
 </style>
+<style>
+/* iPhone home-screen app: keep content clear of the status bar / Dynamic Island */
+@supports (padding: max(0px)) {
+  body {
+    padding-top: calc(env(safe-area-inset-top) + 18px) !important;
+    padding-left: max(10px, env(safe-area-inset-left));
+    padding-right: max(10px, env(safe-area-inset-right));
+    padding-bottom: calc(env(safe-area-inset-bottom) + 40px);
+  }
+}
+</style>
 </head>
 <body>
 <div class="wrap">
