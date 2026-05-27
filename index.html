@@ -12211,6 +12211,10 @@ const LETTERS = ['A','B','C','D','E','F'];
 
 let pool=[], idx=0, selected=new Set(), graded=false, score=0, results=[], sessionN=0, answeredCount=0;
 let sessionFilter=null;  // null = full pool; else {kind:'domain'|'topic', value:...}
+// Re-shuffled on every renderQ so answer position doesn't become a memorization shortcut.
+// currentDisplay[i] = {letter:'A'-'F' (display slot), text, origLetter (from q.options)}
+// currentAnswer = Set of DISPLAY letters that are correct for the current shuffle
+let currentDisplay=[], currentAnswer=new Set();
 
 const DOMAIN_NAMES = {
   1: 'General Security Concepts',
@@ -12499,8 +12503,15 @@ function renderQ(){
   $('#qText').textContent = q.question;
   $('#qImg').innerHTML = q.image ? '<img alt="exhibit" src="'+q.image+'">' : '';
 
+  // Shuffle option TEXT into the fixed A/B/C/D... slots so the user can't
+  // memorize "the answer is always C". Letters stay anchored; text moves.
+  const shuffled = shuffle(q.options);
+  currentDisplay = shuffled.map((o,i) => ({letter: LETTERS[i], text: o.text, origLetter: o.letter}));
+  const origAnswerSet = new Set(q.answer);
+  currentAnswer = new Set(currentDisplay.filter(d => origAnswerSet.has(d.origLetter)).map(d => d.letter));
+
   const opts = $('#opts'); opts.innerHTML=''; opts.classList.remove('graded');
-  q.options.forEach(o=>{
+  currentDisplay.forEach(o=>{
     const d = el('div','opt'); d.dataset.letter=o.letter;
     d.innerHTML = `<div class="key">${o.letter}</div><div class="otext"></div><div class="mark"></div>`;
     d.querySelector('.otext').textContent = o.text;
@@ -12532,27 +12543,32 @@ function submit(){
   if(graded || selected.size===0) return;
   graded=true;
   const q=pool[idx];
-  const correct = new Set(q.answer);
-  const ok = eqSet(selected, correct);
+  const ok = eqSet(selected, currentAnswer);   // both selected and currentAnswer are DISPLAY letters
   if(ok) score++;
   answeredCount++;
-  results.push({q, picked:[...selected], ok});
+  // Translate the user's display-letter picks back to original letters for storage —
+  // keeps results review stable regardless of which shuffle they saw.
+  const pickedOrig = [...selected]
+    .map(L => currentDisplay.find(d => d.letter === L)?.origLetter)
+    .filter(Boolean).sort();
+  results.push({q, picked: pickedOrig, ok});
   recordResult(q, ok);
 
   const opts=$('#opts'); opts.classList.add('graded');
   [...opts.children].forEach(c=>{
     const L=c.dataset.letter;
-    if(correct.has(L)){c.classList.add('correct'); c.querySelector('.mark').textContent='✓';}
+    if(currentAnswer.has(L)){c.classList.add('correct'); c.querySelector('.mark').textContent='✓';}
     else if(selected.has(L)){c.classList.add('wrong'); c.querySelector('.mark').textContent='✗';}
   });
 
   const v=$('#verdict');
   v.className='verdict '+(ok?'ok':'no');
-  v.textContent = ok ? '✓ Correct!' : '✗ Not quite — correct answer: '+q.answer.join(', ');
+  const correctDisplay = [...currentAnswer].sort().join(', ');
+  v.textContent = ok ? '✓ Correct!' : '✗ Not quite — correct answer: '+correctDisplay;
 
   const ex=$('#expl');
   if((q.explanation||'').trim()){
-    ex.innerHTML = '<h4>Why the correct answer is '+q.answer.join(', ')+'</h4>'+escapeHtml(q.explanation);
+    ex.innerHTML = '<h4>Why the correct answer is '+correctDisplay+'</h4>'+escapeHtml(q.explanation);
     ex.classList.add('show');                 // always show after answering, right or wrong
   } else {
     ex.innerHTML=''; ex.classList.remove('show');
@@ -12597,12 +12613,14 @@ function showResults(){
     rev.appendChild(h);
     missed.forEach(m=>{
       const d=el('div','rev');
-      const opTxt = L => { const o=m.q.options.find(o=>o.letter===L); return o?`${L}. ${o.text}`:L; };
+      // Since A/B/C/D get reshuffled per render, show option TEXT (not bare letters)
+      // in the review so it reads correctly regardless of which shuffle the user saw.
+      const opTxt = L => { const o=m.q.options.find(o=>o.letter===L); return o?o.text:L; };
       d.innerHTML =
         `<div class="rq"></div>
          <div class="rimg"></div>
-         <div class="ra"><span class="yours"><b>Your answer:</b> ${m.picked.map(escapeHtml).join(', ')||'—'}</span><br>
-         <span class="corr"><b>Correct:</b> ${m.q.answer.map(x=>escapeHtml(opTxt(x))).join(' &nbsp;|&nbsp; ')}</span></div>
+         <div class="ra"><span class="yours"><b>Your answer:</b> ${m.picked.map(L=>escapeHtml(opTxt(L))).join(' &nbsp;|&nbsp; ')||'—'}</span><br>
+         <span class="corr"><b>Correct:</b> ${m.q.answer.map(L=>escapeHtml(opTxt(L))).join(' &nbsp;|&nbsp; ')}</span></div>
          <div class="rexpl"></div>`;
       d.querySelector('.rq').textContent = '#'+m.q.id+'  '+m.q.question;
       if(m.q.image){ d.querySelector('.rimg').innerHTML='<img alt="exhibit" src="'+m.q.image+'">'; }
